@@ -3,7 +3,12 @@ import { PLAYLIST, SUBJECTS } from '@/lib/playlist'
 
 // openrouter/free = OpenRouter's official free-model auto-router
 // It picks whichever free model is currently available so we never get 404s
-const FREE_MODELS = ['openrouter/free']
+const FREE_MODELS = [
+  'openrouter/free',
+  'google/gemini-2.0-flash-lite-preview-02-05:free',
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'mistralai/mistral-7b-instruct:free'
+]
 
 export async function POST(req: NextRequest) {
   const { lessonId, question, mode } = await req.json()
