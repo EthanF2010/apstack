@@ -46,7 +46,7 @@ export default function StudyApp() {
     fetch(`/api/progress?userId=${uid}`)
       .then(r => r.json())
       .then(data => { if (data.completed) setCompleted(data.completed) })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const filteredPlaylist = filter === 'all' ? PLAYLIST : PLAYLIST.filter(l => l.subj === filter)
@@ -92,7 +92,7 @@ export default function StudyApp() {
     try {
       const data = await fetch(`/api/progress?userId=${encodeURIComponent(newId)}`).then(r => r.json())
       if (data.completed) setCompleted(data.completed)
-    } catch {}
+    } catch { }
   }
 
   const toggleComplete = async () => {
@@ -106,7 +106,7 @@ export default function StudyApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, lessonId: lesson.id, completed: next }),
       })
-    } catch {}
+    } catch { }
     setSyncing(false)
   }
 
