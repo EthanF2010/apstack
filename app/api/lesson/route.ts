@@ -17,49 +17,49 @@ export async function POST(req: NextRequest) {
 
   let prompt: string
   if (mode === 'practice') {
-    prompt = `You are an expert AP exam question writer. Create exactly 5 AP-style multiple choice practice problems for the topic: "${lesson.title}" (${subjectName}).
-
-Each question must follow this exact format:
-
-**Q1:** [Question stem — challenging, AP-exam-quality]
-A) [Option]
-B) [Option]
-C) [Option]
-D) [Option]
-**Answer: B** — [1-2 sentence explanation of why this is correct and why the wrong choices fail]
-
----
-
-**Q2:** ...
+    prompt = `You are an expert AP exam question writer. Create exactly 5 AP-style practice problems (a mix of multiple choice and free response) for the topic: "${lesson.title}" (${subjectName}).
 
 Rules:
-- All 5 questions must be distinctly different aspects of the topic
-- Difficulty should match the real AP exam (some straightforward recall, some application, some analysis)
-- Wrong answer choices must be plausible (common misconceptions)
-- Answers and explanations must be accurate
-- No preamble or conclusion — just the 5 questions in that exact format`
+1. Use LaTeX for math symbols (e.g. $E=mc^2$ or $$E=mc^2$$).
+2. For multiple choice, provide choices A-D. For free response, just pose the question.
+3. Keep the text extremely concise to minimize token usage.
+4. Hide the answer and steps/explanation in a <details> block immediately after each question so students can try it first.
+
+Format exactly like this for each question:
+**Q1:** [Question prompt]
+A) ... (if MC)
+...
+<details>
+<summary>View Answer & Steps</summary>
+
+**Answer:** [Correct Answer]
+**Explanation:** [Brief 1-2 sentence breakdown of how to solve it and why it's correct/incorrect]
+</details>
+
+---`
+
   } else if (question) {
     prompt = `You are an expert AP exam tutor. The student is studying "${lesson.title}" for ${subjectName}.
 They ask: "${question}"
-Answer clearly and concisely (3-5 sentences). Focus on what matters for the AP exam. Use markdown formatting.`
+Answer clearly, concisely, and directly (2-4 sentences). Use LaTeX for math. Focus on AP exam relevance.`
   } else {
-    prompt = `You are an expert AP exam tutor. Create a detailed, engaging study lesson on: "${lesson.title}" for ${subjectName}.
+    prompt = `You are an expert AP exam tutor. Create a concise, high-yield study lesson on: "${lesson.title}" for ${subjectName}.
 
 Use this exact markdown structure:
 
 ## Core Concept
-One paragraph explaining the big idea clearly.
+1 brief paragraph explaining the big idea.
 
 ## Key Principles
-- 4-5 bullet points of the most important facts/rules to memorize
+- 4-5 concise bullet points of the most important facts/rules
 
 ## In Depth
-A thorough explanation with examples and analogies. 3-4 paragraphs.
+1-2 paragraphs with examples. Use LaTeX for math symbols (e.g. $E=mc^2$).
 
 ## AP Exam Focus
-What the AP exam specifically tests on this topic. Common mistakes and traps. 2-3 paragraphs.
+Specific AP exam tests and common traps. 1-2 paragraphs.
 
-Keep total response to 700-900 words. Be specific and accurate.`
+Keep total response under 500 words to minimize tokens. Be extremely concise and accurate.`
   }
 
   let lastError = 'All models failed to respond.'
@@ -77,7 +77,7 @@ Keep total response to 700-900 words. Be specific and accurate.`
         body: JSON.stringify({
           model,
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1200,
+          max_tokens: 800,
         }),
       })
 
