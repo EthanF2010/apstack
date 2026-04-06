@@ -57,6 +57,8 @@ export default function StudyApp() {
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [loginInput, setLoginInput] = useState('')
   const [quizState, setQuizState] = useState<Record<number, { selected?: number, draftSelected?: number, frqText?: string, revealed?: boolean }>>({})
+  const [quizCache, setQuizCache] = useState<Record<string, Record<number, any>>>({})
+  const [followupCache, setFollowupCache] = useState<Record<string, { q: string; a: string }[]>>({})
   const contentRef = useRef<HTMLDivElement>(null)
 
   // Init user + load progress
@@ -74,15 +76,26 @@ export default function StudyApp() {
   const filteredPlaylist = filter === 'all' ? PLAYLIST : PLAYLIST.filter(l => l.subj === filter)
   const lesson: Lesson | null = currentIdx !== null ? PLAYLIST[currentIdx] : null
 
+  // Sync state to current lesson cache
+  useEffect(() => {
+    if (lesson) setQuizCache(p => ({ ...p, [lesson.id]: quizState }))
+  }, [quizState, lesson])
+
+  useEffect(() => {
+    if (lesson) setFollowupCache(p => ({ ...p, [lesson.id]: followups }))
+  }, [followups, lesson])
+
   const loadLesson = useCallback(async (idx: number) => {
     const l = PLAYLIST[idx]
     setCurrentIdx(idx)
-    setFollowups([])
     setAskInput('')
     setActiveTab('lesson')
-    setPracticeText('')
-    setQuizState({})
     localStorage.setItem('apstack_lastIdx', String(idx))
+
+    // Restore cached elements for immediate display when switching back
+    setFollowups(followupCache[l.id] || [])
+    setPracticeText(practiceCache[l.id] || '')
+    setQuizState(quizCache[l.id] || {})
 
     if (lessonCache[l.id]) {
       setLessonText(lessonCache[l.id])
@@ -108,7 +121,7 @@ export default function StudyApp() {
       setLessonText('Error loading lesson. Check your connection and try again.')
     }
     setLessonLoading(false)
-  }, [lessonCache])
+  }, [lessonCache, practiceCache, followupCache, quizCache])
 
   const loadPractice = useCallback(async () => {
     if (!lesson) return
