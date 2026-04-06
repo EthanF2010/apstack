@@ -61,6 +61,9 @@ export default function StudyApp() {
   const [quizCache, setQuizCache] = useState<Record<string, Record<number, any>>>({})
   const [followupCache, setFollowupCache] = useState<Record<string, { q: string; a: string }[]>>({})
   const contentRef = useRef<HTMLDivElement>(null)
+  
+  const activeIdRef = useRef<string | null>(null)
+  const practiceIdRef = useRef<string | null>(null)
 
   // Init user + load progress
   useEffect(() => {
@@ -98,8 +101,11 @@ export default function StudyApp() {
     setPracticeText(practiceCache[l.id] || '')
     setQuizState(quizCache[l.id] || {})
 
+    activeIdRef.current = l.id
+
     if (lessonCache[l.id]) {
       setLessonText(lessonCache[l.id])
+      setLessonLoading(false)
       return
     }
     setLessonLoading(true)
@@ -111,24 +117,35 @@ export default function StudyApp() {
         body: JSON.stringify({ lessonId: l.id }),
       })
       const data = await res.json()
-      if (!data.text) {
-        setLessonText(`❌ Generation failed: ${data.error || 'Unknown error'}\n\nCheck Vercel logs for details.`)
-        setLessonLoading(false)
-        return
+      
+      if (data.text) {
+        setLessonCache(prev => ({ ...prev, [l.id]: data.text }))
       }
-      setLessonText(data.text)
-      setLessonCache(prev => ({ ...prev, [l.id]: data.text }))
+
+      if (activeIdRef.current === l.id) {
+        if (!data.text) {
+          setLessonText(`❌ Generation failed: ${data.error || 'Unknown error'}\n\nCheck Vercel logs for details.`)
+        } else {
+          setLessonText(data.text)
+        }
+        setLessonLoading(false)
+      }
     } catch {
-      setLessonText('Error loading lesson. Check your connection and try again.')
+      if (activeIdRef.current === l.id) {
+        setLessonText('Error loading lesson. Check your connection and try again.')
+        setLessonLoading(false)
+      }
     }
-    setLessonLoading(false)
   }, [lessonCache, practiceCache, followupCache, quizCache])
 
   const loadPractice = useCallback(async () => {
     if (!lesson) return
+    practiceIdRef.current = lesson.id
+
     if (practiceCache[lesson.id]) {
       setPracticeText(practiceCache[lesson.id])
       setQuizState({})
+      setPracticeLoading(false)
       return
     }
     setPracticeLoading(true)
@@ -141,17 +158,25 @@ export default function StudyApp() {
         body: JSON.stringify({ lessonId: lesson.id, mode: 'practice' }),
       })
       const data = await res.json()
-      if (!data.text) {
-        setPracticeText(`❌ Generation failed: ${data.error || 'Unknown error'}\n\nCheck Vercel logs for details.`)
-        setPracticeLoading(false)
-        return
+      
+      if (data.text) {
+        setPracticeCache(prev => ({ ...prev, [lesson.id]: data.text }))
       }
-      setPracticeText(data.text)
-      setPracticeCache(prev => ({ ...prev, [lesson.id]: data.text }))
+
+      if (practiceIdRef.current === lesson.id) {
+        if (!data.text) {
+          setPracticeText(`❌ Generation failed: ${data.error || 'Unknown error'}\n\nCheck Vercel logs for details.`)
+        } else {
+          setPracticeText(data.text)
+        }
+        setPracticeLoading(false)
+      }
     } catch {
-      setPracticeText('Error generating practice problems. Try again.')
+      if (practiceIdRef.current === lesson.id) {
+        setPracticeText('Error generating practice problems. Try again.')
+        setPracticeLoading(false)
+      }
     }
-    setPracticeLoading(false)
   }, [lesson, practiceCache])
 
   const switchTab = (tab: Tab) => {
