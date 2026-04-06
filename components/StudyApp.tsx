@@ -31,6 +31,8 @@ export default function StudyApp() {
   const [followups, setFollowups] = useState<{ q: string; a: string }[]>([])
   const [userId, setUserId] = useState<string>('')
   const [syncing, setSyncing] = useState(false)
+  const [showLoginDialog, setShowLoginDialog] = useState(false)
+  const [loginInput, setLoginInput] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
 
   // Init user + load progress
@@ -79,6 +81,19 @@ export default function StudyApp() {
     }
     setLessonLoading(false)
   }, [lessonCache])
+
+  const switchAccount = async () => {
+    const newId = loginInput.trim()
+    if (!newId) return
+    localStorage.setItem('apstack_uid', newId)
+    setUserId(newId)
+    setShowLoginDialog(false)
+    setLoginInput('')
+    try {
+      const data = await fetch(`/api/progress?userId=${encodeURIComponent(newId)}`).then(r => r.json())
+      if (data.completed) setCompleted(data.completed)
+    } catch {}
+  }
 
   const toggleComplete = async () => {
     if (!lesson || !userId) return
@@ -214,10 +229,17 @@ export default function StudyApp() {
 
         {/* User ID footer */}
         <div className="p-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', wordBreak: 'break-all' }}>
-            Device ID: {userId.slice(0, 16)}…<br />
-            <span style={{ color: 'rgba(255,255,255,0.35)' }}>Progress syncs automatically</span>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', wordBreak: 'break-all', marginBottom: 6 }}>
+            User ID: {userId.slice(0, 16)}{userId.length > 16 ? '…' : ''}
           </div>
+          <button
+            id="switch-account-btn"
+            onClick={() => { setLoginInput(''); setShowLoginDialog(true) }}
+            className="w-full rounded-lg transition-all font-medium"
+            style={{ padding: '7px 0', fontSize: 12, background: '#242336', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
+          >
+            🔑 Log in with User ID
+          </button>
         </div>
       </aside>
 
@@ -273,7 +295,7 @@ export default function StudyApp() {
               {lessonLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-5">
                   <div className="spin rounded-full" style={{ width: 44, height: 44, background: 'conic-gradient(#ff8906, #f25f4c, #c084fc, #ff8906)' }} />
-                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Generating lesson with Gemini AI…</div>
+                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Generating lesson with OpenRouter AI…</div>
                 </div>
               ) : (
                 <div className="fade-in prose-ap">
@@ -323,6 +345,55 @@ export default function StudyApp() {
           )}
         </div>
       </main>
+
+      {/* Login by User ID dialog */}
+      {showLoginDialog && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowLoginDialog(false)}
+        >
+          <div
+            className="rounded-2xl shadow-2xl"
+            style={{ background: '#1a1927', border: '1px solid rgba(255,255,255,0.12)', padding: '28px 28px 24px', width: 360, maxWidth: '90vw' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: '#fffffe', marginBottom: 6 }}>Log in with User ID</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginBottom: 20, lineHeight: 1.5 }}>
+              Paste your ID from another device to sync your progress here.
+            </div>
+            <input
+              id="login-userid-input"
+              value={loginInput}
+              onChange={e => setLoginInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && switchAccount()}
+              placeholder="user_abc123…"
+              autoFocus
+              className="w-full rounded-xl outline-none"
+              style={{ padding: '11px 14px', fontSize: 13, background: '#0f0e17', border: '1px solid rgba(255,255,255,0.15)', color: '#fffffe', fontFamily: 'DM Sans, sans-serif', marginBottom: 16 }}
+            />
+            <div className="flex gap-2">
+              <button
+                id="login-cancel-btn"
+                onClick={() => setShowLoginDialog(false)}
+                className="flex-1 rounded-xl transition-all"
+                style={{ padding: '10px 0', fontSize: 13, background: 'transparent', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                id="login-sync-btn"
+                onClick={switchAccount}
+                disabled={!loginInput.trim()}
+                className="flex-1 rounded-xl transition-all font-semibold disabled:opacity-40"
+                style={{ padding: '10px 0', fontSize: 13, background: '#ff8906', color: '#0f0e17', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
+              >
+                Sync →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
