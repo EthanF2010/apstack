@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0f0e17;
+  --surface: #1a1927;
+  --surface2: #242336;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: #fffffe;
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+
+/* Markdown styles */
+.prose-ap h2 { font-family: 'DM Serif Display', serif; font-size: 1.35rem; font-weight: 400; color: #fffffe; margin: 1.6rem 0 0.6rem; }
+.prose-ap h3 { font-size: 1rem; font-weight: 600; color: #fffffe; margin: 1.2rem 0 0.4rem; }
+.prose-ap p { font-size: 0.9375rem; line-height: 1.75; color: rgba(255,255,255,0.82); margin-bottom: 0.875rem; }
+.prose-ap ul, .prose-ap ol { margin: 0.5rem 0 1rem 1.25rem; }
+.prose-ap li { font-size: 0.9375rem; line-height: 1.65; color: rgba(255,255,255,0.82); margin-bottom: 0.4rem; }
+.prose-ap strong { color: #fffffe; font-weight: 600; }
+.prose-ap em { color: #ff8906; font-style: normal; font-weight: 500; }
+.prose-ap code { background: #242336; padding: 2px 6px; border-radius: 5px; font-family: 'Courier New', monospace; font-size: 0.8125rem; color: #2dd4bf; }
+.prose-ap blockquote { border-left: 3px solid #ff8906; padding: 8px 16px; background: rgba(255,137,6,0.06); border-radius: 0 8px 8px 0; margin: 1rem 0; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease; }
