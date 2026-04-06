@@ -82,7 +82,7 @@ Keep total response under 500 words to minimize tokens. Be extremely concise and
         body: JSON.stringify({
           model,
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 800,
+          max_tokens: 1800,
         }),
       })
 

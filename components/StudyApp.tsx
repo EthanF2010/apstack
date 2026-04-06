@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
+import rehypeRaw from 'rehype-raw'
 import 'katex/dist/katex.min.css'
 import { PLAYLIST, SUBJECTS, type Lesson, type Subject } from '@/lib/playlist'
 
@@ -376,7 +377,7 @@ export default function StudyApp() {
                     </div>
                   ) : (
                     <div className="fade-in prose-ap">
-                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{lessonText}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{lessonText}</ReactMarkdown>
                     </div>
                   )}
 
@@ -388,7 +389,7 @@ export default function StudyApp() {
                           <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: SUBJECTS[lesson.subj].accent, marginBottom: 6 }}>Your question: {fup.q}</div>
                           {fup.a ? (
                             <div className="prose-ap" style={{ fontSize: 14 }}>
-                              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{fup.a}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{fup.a}</ReactMarkdown>
                             </div>
                           ) : (
                             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Thinking…</div>
@@ -446,7 +447,7 @@ export default function StudyApp() {
                         </button>
                       </div>
                       <div className="prose-ap">
-                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{practiceText}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{practiceText}</ReactMarkdown>
                       </div>
                     </div>
                   ) : null}
