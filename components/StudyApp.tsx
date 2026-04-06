@@ -15,7 +15,13 @@ function getUserId(): string {
   return id
 }
 
+// e.g. calc unit 3 lesson 1 → "3.1"
+function lessonCode(l: Lesson): string {
+  return `${l.unit}.${l.lesson}`
+}
+
 type Filter = 'all' | Subject
+type Tab = 'lesson' | 'practice'
 
 const SUBJECT_KEYS = Object.keys(SUBJECTS) as Subject[]
 
@@ -26,6 +32,10 @@ export default function StudyApp() {
   const [lessonText, setLessonText] = useState<string>('')
   const [lessonLoading, setLessonLoading] = useState(false)
   const [lessonCache, setLessonCache] = useState<Record<string, string>>({})
+  const [practiceText, setPracticeText] = useState<string>('')
+  const [practiceLoading, setPracticeLoading] = useState(false)
+  const [practiceCache, setPracticeCache] = useState<Record<string, string>>({})
+  const [activeTab, setActiveTab] = useState<Tab>('lesson')
   const [askInput, setAskInput] = useState('')
   const [askLoading, setAskLoading] = useState(false)
   const [followups, setFollowups] = useState<{ q: string; a: string }[]>([])
@@ -39,10 +49,8 @@ export default function StudyApp() {
   useEffect(() => {
     const uid = getUserId()
     setUserId(uid)
-    // Restore last lesson
     const lastIdx = localStorage.getItem('apstack_lastIdx')
     if (lastIdx !== null) setCurrentIdx(parseInt(lastIdx))
-    // Load progress from DB
     fetch(`/api/progress?userId=${uid}`)
       .then(r => r.json())
       .then(data => { if (data.completed) setCompleted(data.completed) })
@@ -50,7 +58,6 @@ export default function StudyApp() {
   }, [])
 
   const filteredPlaylist = filter === 'all' ? PLAYLIST : PLAYLIST.filter(l => l.subj === filter)
-
   const lesson: Lesson | null = currentIdx !== null ? PLAYLIST[currentIdx] : null
 
   const loadLesson = useCallback(async (idx: number) => {
@@ -58,6 +65,8 @@ export default function StudyApp() {
     setCurrentIdx(idx)
     setFollowups([])
     setAskInput('')
+    setActiveTab('lesson')
+    setPracticeText('')
     localStorage.setItem('apstack_lastIdx', String(idx))
 
     if (lessonCache[l.id]) {
@@ -85,6 +94,41 @@ export default function StudyApp() {
     }
     setLessonLoading(false)
   }, [lessonCache])
+
+  const loadPractice = useCallback(async () => {
+    if (!lesson) return
+    if (practiceCache[lesson.id]) {
+      setPracticeText(practiceCache[lesson.id])
+      return
+    }
+    setPracticeLoading(true)
+    setPracticeText('')
+    try {
+      const res = await fetch('/api/lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lessonId: lesson.id, mode: 'practice' }),
+      })
+      const data = await res.json()
+      if (!data.text) {
+        setPracticeText(`❌ Generation failed: ${data.error || 'Unknown error'}\n\nCheck Vercel logs for details.`)
+        setPracticeLoading(false)
+        return
+      }
+      setPracticeText(data.text)
+      setPracticeCache(prev => ({ ...prev, [lesson.id]: data.text }))
+    } catch {
+      setPracticeText('Error generating practice problems. Try again.')
+    }
+    setPracticeLoading(false)
+  }, [lesson, practiceCache])
+
+  const switchTab = (tab: Tab) => {
+    setActiveTab(tab)
+    if (tab === 'practice' && lesson && !practiceCache[lesson.id] && !practiceLoading) {
+      loadPractice()
+    }
+  }
 
   const switchAccount = async () => {
     const newId = loginInput.trim()
@@ -150,7 +194,6 @@ export default function StudyApp() {
 
   const totalDone = Object.values(completed).filter(Boolean).length
   const pct = Math.round((totalDone / PLAYLIST.length) * 100)
-
   const localIdx = lesson ? filteredPlaylist.indexOf(lesson) : -1
 
   return (
@@ -214,13 +257,14 @@ export default function StudyApp() {
                 className="w-full flex items-center gap-2.5 rounded-xl text-left transition-all mb-0.5"
                 style={{ padding: '9px 11px', background: isActive ? '#242336' : 'transparent' }}
               >
-                {/* Subject dot */}
-                <div className="shrink-0 rounded-full flex items-center justify-center font-semibold" style={{ width: 28, height: 28, fontSize: 9, letterSpacing: '0.3px', color: subj.accent, background: `${subj.accent}18` }}>
-                  {subj.short.slice(0, 3).toUpperCase()}
+                {/* Unit badge */}
+                <div className="shrink-0 rounded-lg flex flex-col items-center justify-center font-bold" style={{ width: 32, height: 32, fontSize: 10, color: subj.accent, background: `${subj.accent}18`, lineHeight: 1 }}>
+                  <span style={{ fontSize: 8, fontWeight: 500, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.2px' }}>{subj.short.slice(0, 3)}</span>
+                  <span style={{ fontSize: 11 }}>{lessonCode(l)}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="truncate" style={{ fontSize: 13, fontWeight: 500, color: isActive ? '#fffffe' : 'rgba(255,255,255,0.75)', lineHeight: 1.3 }}>{l.title}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{subj.label}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{subj.label} · Unit {l.unit}</div>
                 </div>
                 {/* Check */}
                 <div className="shrink-0 rounded-full flex items-center justify-center transition-all" style={{ width: 18, height: 18, border: `1.5px solid ${isDone ? '#4ade80' : 'rgba(255,255,255,0.15)'}`, background: isDone ? '#4ade80' : 'transparent', fontSize: 10, color: isDone ? '#0f0e17' : 'transparent', fontWeight: 700 }}>
@@ -287,63 +331,123 @@ export default function StudyApp() {
           ) : (
             <div style={{ maxWidth: 800, margin: '0 auto', padding: '36px 40px 60px' }}>
               {/* Lesson header */}
-              <div className="mb-7">
-                <div className="inline-flex items-center rounded-full border mb-3" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', padding: '4px 12px', color: SUBJECTS[lesson.subj].accent, borderColor: SUBJECTS[lesson.subj].accent + '40', background: SUBJECTS[lesson.subj].accent + '14' }}>
-                  {SUBJECTS[lesson.subj].label}
+              <div className="mb-6">
+                <div className="flex items-center gap-3 mb-3 flex-wrap">
+                  <div className="inline-flex items-center rounded-full border" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', padding: '4px 12px', color: SUBJECTS[lesson.subj].accent, borderColor: SUBJECTS[lesson.subj].accent + '40', background: SUBJECTS[lesson.subj].accent + '14' }}>
+                    {SUBJECTS[lesson.subj].label}
+                  </div>
+                  <div className="inline-flex items-center rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.4px' }}>
+                    Unit {lesson.unit} · Lesson {lesson.unit}.{lesson.lesson}
+                  </div>
                 </div>
                 <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 34, lineHeight: 1.15, letterSpacing: '-0.5px', color: '#fffffe', marginBottom: 8 }}>{lesson.title}</h1>
                 <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>{lesson.desc}</p>
               </div>
 
-              {/* Lesson body */}
-              {lessonLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-5">
-                  <div className="spin rounded-full" style={{ width: 44, height: 44, background: 'conic-gradient(#ff8906, #f25f4c, #c084fc, #ff8906)' }} />
-                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Generating lesson with OpenRouter AI…</div>
-                </div>
-              ) : (
-                <div className="fade-in prose-ap">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonText}</ReactMarkdown>
-                </div>
-              )}
-
-              {/* Followup Q&A */}
-              {followups.length > 0 && (
-                <div className="mt-8 space-y-4">
-                  {followups.map((fup, i) => (
-                    <div key={i} className="rounded-xl p-4 fade-in" style={{ borderLeft: `3px solid ${SUBJECTS[lesson.subj].accent}`, background: `${SUBJECTS[lesson.subj].accent}0d` }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: SUBJECTS[lesson.subj].accent, marginBottom: 6 }}>Your question: {fup.q}</div>
-                      {fup.a ? (
-                        <div className="prose-ap" style={{ fontSize: 14 }}>
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{fup.a}</ReactMarkdown>
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Thinking…</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Ask input */}
-              {!lessonLoading && lessonText && (
-                <div className="flex gap-2 mt-8">
-                  <input
-                    value={askInput}
-                    onChange={e => setAskInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && askQuestion()}
-                    placeholder="Ask a follow-up question about this lesson…"
-                    className="flex-1 rounded-xl outline-none transition-all"
-                    style={{ padding: '11px 16px', fontSize: 14, background: '#1a1927', border: '1px solid rgba(255,255,255,0.12)', color: '#fffffe', fontFamily: 'DM Sans, sans-serif' }}
-                  />
+              {/* Tabs */}
+              <div className="flex gap-1 mb-7 rounded-xl p-1" style={{ background: '#1a1927', width: 'fit-content' }}>
+                {(['lesson', 'practice'] as Tab[]).map(tab => (
                   <button
-                    onClick={askQuestion}
-                    disabled={askLoading || !askInput.trim()}
-                    className="rounded-xl font-semibold transition-all disabled:opacity-40"
-                    style={{ padding: '11px 20px', fontSize: 14, background: '#ff8906', color: '#0f0e17', border: 'none', fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    {askLoading ? '…' : 'Ask →'}
+                    key={tab}
+                    onClick={() => switchTab(tab)}
+                    className="rounded-lg font-semibold transition-all capitalize"
+                    style={{
+                      padding: '7px 18px', fontSize: 13,
+                      background: activeTab === tab ? '#242336' : 'transparent',
+                      color: activeTab === tab ? '#fffffe' : 'rgba(255,255,255,0.4)',
+                      border: activeTab === tab ? '1px solid rgba(255,255,255,0.1)' : '1px solid transparent',
+                    }}
+                  >
+                    {tab === 'lesson' ? '📖 Lesson' : '✏️ Practice'}
                   </button>
-                </div>
+                ))}
+              </div>
+
+              {/* ── LESSON TAB ── */}
+              {activeTab === 'lesson' && (
+                <>
+                  {lessonLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-5">
+                      <div className="spin rounded-full" style={{ width: 44, height: 44, background: 'conic-gradient(#ff8906, #f25f4c, #c084fc, #ff8906)' }} />
+                      <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Generating lesson with OpenRouter AI…</div>
+                    </div>
+                  ) : (
+                    <div className="fade-in prose-ap">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonText}</ReactMarkdown>
+                    </div>
+                  )}
+
+                  {/* Followup Q&A */}
+                  {followups.length > 0 && (
+                    <div className="mt-8 space-y-4">
+                      {followups.map((fup, i) => (
+                        <div key={i} className="rounded-xl p-4 fade-in" style={{ borderLeft: `3px solid ${SUBJECTS[lesson.subj].accent}`, background: `${SUBJECTS[lesson.subj].accent}0d` }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: SUBJECTS[lesson.subj].accent, marginBottom: 6 }}>Your question: {fup.q}</div>
+                          {fup.a ? (
+                            <div className="prose-ap" style={{ fontSize: 14 }}>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{fup.a}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Thinking…</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Ask input */}
+                  {!lessonLoading && lessonText && (
+                    <div className="flex gap-2 mt-8">
+                      <input
+                        value={askInput}
+                        onChange={e => setAskInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && askQuestion()}
+                        placeholder="Ask a follow-up question about this lesson…"
+                        className="flex-1 rounded-xl outline-none transition-all"
+                        style={{ padding: '11px 16px', fontSize: 14, background: '#1a1927', border: '1px solid rgba(255,255,255,0.12)', color: '#fffffe', fontFamily: 'DM Sans, sans-serif' }}
+                      />
+                      <button
+                        onClick={askQuestion}
+                        disabled={askLoading || !askInput.trim()}
+                        className="rounded-xl font-semibold transition-all disabled:opacity-40"
+                        style={{ padding: '11px 20px', fontSize: 14, background: '#ff8906', color: '#0f0e17', border: 'none', fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        {askLoading ? '…' : 'Ask →'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── PRACTICE TAB ── */}
+              {activeTab === 'practice' && (
+                <>
+                  {practiceLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-5">
+                      <div className="spin rounded-full" style={{ width: 44, height: 44, background: 'conic-gradient(#c084fc, #f25f4c, #ff8906, #c084fc)' }} />
+                      <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Generating 5 AP-style practice problems…</div>
+                    </div>
+                  ) : practiceText ? (
+                    <div className="fade-in">
+                      <div className="rounded-xl p-4 mb-6 flex items-center gap-3" style={{ background: `${SUBJECTS[lesson.subj].accent}12`, border: `1px solid ${SUBJECTS[lesson.subj].accent}30` }}>
+                        <span style={{ fontSize: 20 }}>✏️</span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: SUBJECTS[lesson.subj].accent }}>5 AP-Style Practice Problems</div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>Try each question before revealing the answer. Cover the answer line with your hand!</div>
+                        </div>
+                        <button
+                          onClick={() => { setPracticeText(''); setPracticeCache(prev => { const n = { ...prev }; delete n[lesson.id]; return n }); loadPractice() }}
+                          className="ml-auto rounded-lg transition-all"
+                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          🔄 New set
+                        </button>
+                      </div>
+                      <div className="prose-ap">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{practiceText}</ReactMarkdown>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               )}
             </div>
           )}

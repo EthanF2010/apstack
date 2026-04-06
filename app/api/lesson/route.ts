@@ -6,7 +6,7 @@ import { PLAYLIST, SUBJECTS } from '@/lib/playlist'
 const FREE_MODELS = ['openrouter/free']
 
 export async function POST(req: NextRequest) {
-  const { lessonId, question } = await req.json()
+  const { lessonId, question, mode } = await req.json()
   const lesson = PLAYLIST.find(l => l.id === lessonId)
   if (!lesson) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 })
 
@@ -16,7 +16,29 @@ export async function POST(req: NextRequest) {
   const subjectName = SUBJECTS[lesson.subj].label
 
   let prompt: string
-  if (question) {
+  if (mode === 'practice') {
+    prompt = `You are an expert AP exam question writer. Create exactly 5 AP-style multiple choice practice problems for the topic: "${lesson.title}" (${subjectName}).
+
+Each question must follow this exact format:
+
+**Q1:** [Question stem — challenging, AP-exam-quality]
+A) [Option]
+B) [Option]
+C) [Option]
+D) [Option]
+**Answer: B** — [1-2 sentence explanation of why this is correct and why the wrong choices fail]
+
+---
+
+**Q2:** ...
+
+Rules:
+- All 5 questions must be distinctly different aspects of the topic
+- Difficulty should match the real AP exam (some straightforward recall, some application, some analysis)
+- Wrong answer choices must be plausible (common misconceptions)
+- Answers and explanations must be accurate
+- No preamble or conclusion — just the 5 questions in that exact format`
+  } else if (question) {
     prompt = `You are an expert AP exam tutor. The student is studying "${lesson.title}" for ${subjectName}.
 They ask: "${question}"
 Answer clearly and concisely (3-5 sentences). Focus on what matters for the AP exam. Use markdown formatting.`
@@ -36,22 +58,6 @@ A thorough explanation with examples and analogies. 3-4 paragraphs.
 
 ## AP Exam Focus
 What the AP exam specifically tests on this topic. Common mistakes and traps. 2-3 paragraphs.
-
-## Practice Questions
-
-**Q1:** [Multiple choice question at AP difficulty]
-A) [option]
-B) [option]
-C) [option]
-D) [option]
-**Answer:** [Letter] — [Brief explanation of why this is correct and why others are wrong]
-
-**Q2:** [Another multiple choice question]
-A) [option]
-B) [option]
-C) [option]
-D) [option]
-**Answer:** [Letter] — [Brief explanation]
 
 Keep total response to 700-900 words. Be specific and accurate.`
   }
