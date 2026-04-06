@@ -8,6 +8,7 @@ import rehypeKatex from 'rehype-katex'
 import rehypeRaw from 'rehype-raw'
 import 'katex/dist/katex.min.css'
 import { PLAYLIST, SUBJECTS, type Lesson, type Subject } from '@/lib/playlist'
+import lessonData from '@/lib/lesson-data.json'
 
 // Generate or retrieve a stable user ID
 function getUserId(): string {
@@ -44,7 +45,7 @@ export default function StudyApp() {
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
   const [lessonText, setLessonText] = useState<string>('')
   const [lessonLoading, setLessonLoading] = useState(false)
-  const [lessonCache, setLessonCache] = useState<Record<string, string>>({})
+  const [lessonCache, setLessonCache] = useState<Record<string, string>>(lessonData as Record<string, string>)
   const [practiceText, setPracticeText] = useState<string>('')
   const [practiceLoading, setPracticeLoading] = useState(false)
   const [practiceCache, setPracticeCache] = useState<Record<string, string>>({})
