@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PLAYLIST, SUBJECTS } from '@/lib/playlist'
 
-// Free models on OpenRouter (no billing required):
-// meta-llama/llama-3.1-8b-instruct:free
-// google/gemma-2-9b-it:free
-// mistralai/mistral-7b-instruct:free
-const FREE_MODEL = 'meta-llama/llama-3.1-8b-instruct:free'
+// Free models on OpenRouter — tried in order until one succeeds
+const FREE_MODELS = [
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'google/gemma-2-9b-it:free',
+  'mistralai/mistral-7b-instruct:free',
+]
 
 export async function POST(req: NextRequest) {
   const { lessonId, question } = await req.json()
@@ -58,34 +59,46 @@ D) [option]
 Keep total response to 700-900 words. Be specific and accurate.`
   }
 
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://apstack.vercel.app',
-        'X-Title': 'APStack',
-      },
-      body: JSON.stringify({
-        model: FREE_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 1200,
-      }),
-    })
+  let lastError = 'All models failed to respond.'
 
-    if (!res.ok) {
-      const err = await res.text()
-      console.error('OpenRouter error:', err)
-      return NextResponse.json({ error: `OpenRouter error: ${res.status}` }, { status: 500 })
+  for (const model of FREE_MODELS) {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://apstack.vercel.app',
+          'X-Title': 'APStack',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 1200,
+        }),
+      })
+
+      if (!res.ok) {
+        const errBody = await res.text()
+        lastError = `OpenRouter ${res.status} (${model}): ${errBody}`
+        console.error('OpenRouter error:', lastError)
+        continue // try next model
+      }
+
+      const data = await res.json()
+      const text = data.choices?.[0]?.message?.content
+      if (!text) {
+        lastError = `Empty response from ${model}`
+        console.error(lastError, data)
+        continue
+      }
+
+      return NextResponse.json({ text, model })
+    } catch (e: unknown) {
+      lastError = e instanceof Error ? e.message : `Unknown error with ${model}`
+      console.error('Fetch error:', lastError)
     }
-
-    const data = await res.json()
-    const text = data.choices?.[0]?.message?.content || 'No response from model.'
-    return NextResponse.json({ text })
-  } catch (e: unknown) {
-    console.error(e)
-    const msg = e instanceof Error ? e.message : 'Generation failed'
-    return NextResponse.json({ error: msg }, { status: 500 })
   }
+
+  return NextResponse.json({ error: lastError }, { status: 500 })
 }

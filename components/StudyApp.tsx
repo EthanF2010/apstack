@@ -73,9 +73,13 @@ export default function StudyApp() {
         body: JSON.stringify({ lessonId: l.id }),
       })
       const data = await res.json()
-      const text = data.text || 'Failed to generate lesson.'
-      setLessonText(text)
-      setLessonCache(prev => ({ ...prev, [l.id]: text }))
+      if (!data.text) {
+        setLessonText(`❌ Generation failed: ${data.error || 'Unknown error'}\n\nCheck Vercel logs for details.`)
+        setLessonLoading(false)
+        return
+      }
+      setLessonText(data.text)
+      setLessonCache(prev => ({ ...prev, [l.id]: data.text }))
     } catch {
       setLessonText('Error loading lesson. Check your connection and try again.')
     }
