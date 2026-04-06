@@ -22,26 +22,27 @@ export async function POST(req: NextRequest) {
 
   let prompt: string
   if (mode === 'practice') {
-    prompt = `You are an expert AP exam question writer. Create exactly 5 AP-style practice problems (a mix of multiple choice and free response) for the topic: "${lesson.title}" (${subjectName}).
+    prompt = `You are an expert AP exam question writer. Create exactly 5 AP-style practice problems (mix of multiple choice and free response) for "${lesson.title}" (${subjectName}).
 
 Rules:
-1. Use LaTeX for math symbols (e.g. $E=mc^2$ or $$E=mc^2$$).
-2. For multiple choice, provide choices A-D. For free response, just pose the question.
-3. Keep the text extremely concise to minimize token usage.
-4. Hide the answer and steps/explanation in a <details> block immediately after each question so students can try it first.
+1. Return ONLY a valid JSON array. No markdown blocks, no preface, no trailing text.
+2. Use LaTeX for math symbols (e.g. $E=mc^2$). MUST KEEP valid JSON escaping (e.g. \\\\n if needed).
 
-Format exactly like this for each question:
-**Q1:** [Question prompt]
-A) ... (if MC)
-...
-<details>
-<summary>View Answer & Steps</summary>
-
-**Answer:** [Correct Answer]
-**Explanation:** [Brief 1-2 sentence breakdown of how to solve it and why it's correct/incorrect]
-</details>
-
----`
+JSON format:
+[
+  {
+    "type": "mcq",
+    "question": "What is...",
+    "options": ["...", "...", "...", "..."],
+    "correctIndex": 0,
+    "explanation": "Brief explanation..."
+  },
+  {
+    "type": "frq",
+    "question": "Explain...",
+    "explanation": "Brief explanation..."
+  }
+]`
 
   } else if (question) {
     prompt = `You are an expert AP exam tutor. The student is studying "${lesson.title}" for ${subjectName}.

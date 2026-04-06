@@ -47,6 +47,7 @@ export default function StudyApp() {
   const [syncing, setSyncing] = useState(false)
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [loginInput, setLoginInput] = useState('')
+  const [quizState, setQuizState] = useState<Record<number, { selected?: number, revealed?: boolean }>>({})
   const contentRef = useRef<HTMLDivElement>(null)
 
   // Init user + load progress
@@ -71,6 +72,7 @@ export default function StudyApp() {
     setAskInput('')
     setActiveTab('lesson')
     setPracticeText('')
+    setQuizState({})
     localStorage.setItem('apstack_lastIdx', String(idx))
 
     if (lessonCache[l.id]) {
@@ -103,10 +105,12 @@ export default function StudyApp() {
     if (!lesson) return
     if (practiceCache[lesson.id]) {
       setPracticeText(practiceCache[lesson.id])
+      setQuizState({})
       return
     }
     setPracticeLoading(true)
     setPracticeText('')
+    setQuizState({})
     try {
       const res = await fetch('/api/lesson', {
         method: 'POST',
@@ -446,8 +450,88 @@ export default function StudyApp() {
                           🔄 New set
                         </button>
                       </div>
-                      <div className="prose-ap">
-                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{practiceText}</ReactMarkdown>
+                      <div className="flex flex-col gap-8 pb-10">
+                        {(() => {
+                          let problems: any[] = []
+                          try {
+                            const str = practiceText.replace(/```json\n?|\n?```/g, '').trim()
+                            problems = JSON.parse(str)
+                          } catch {
+                            return <div className="prose-ap"><ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{practiceText}</ReactMarkdown></div>
+                          }
+
+                          return problems.map((prob, i) => {
+                            const qState = quizState[i] || {}
+                            const isAnswered = qState.revealed || qState.selected !== undefined
+
+                            return (
+                              <div key={i} className="rounded-xl p-5 border" style={{ borderColor: 'rgba(255,255,255,0.1)', background: '#1a1927' }}>
+                                <div className="font-semibold mb-3 flex gap-2">
+                                  <span style={{ color: SUBJECTS[lesson.subj].accent }}>Q{i + 1}.</span>
+                                  <div className="prose-ap" style={{ display: 'inline-block' }}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{prob.question}</ReactMarkdown>
+                                  </div>
+                                </div>
+                                {prob.type === 'mcq' && prob.options && (
+                                  <div className="flex flex-col gap-2 mt-4 ml-6">
+                                    {prob.options.map((opt: string, optIdx: number) => {
+                                      const isSelected = qState.selected === optIdx
+                                      const isCorrect = isAnswered && optIdx === prob.correctIndex
+                                      const isWrong = isAnswered && isSelected && optIdx !== prob.correctIndex
+                                      
+                                      let bg = 'rgba(255,255,255,0.04)'
+                                      let borderColor = 'rgba(255,255,255,0.1)'
+                                      if (isCorrect) {
+                                        bg = 'rgba(74, 222, 128, 0.15)'
+                                        borderColor = '#4ade80'
+                                      } else if (isWrong) {
+                                        bg = 'rgba(248, 113, 113, 0.15)'
+                                        borderColor = '#f87171'
+                                      } else if (isSelected) {
+                                        bg = 'rgba(255,255,255,0.15)'
+                                        borderColor = 'rgba(255,255,255,0.3)'
+                                      }
+
+                                      return (
+                                        <button
+                                          key={optIdx}
+                                          disabled={isAnswered}
+                                          onClick={() => setQuizState(p => ({ ...p, [i]: { ...p[i], selected: optIdx, revealed: true } }))}
+                                          className="text-left rounded-lg p-3 transition-colors disabled:cursor-default"
+                                          style={{ background: bg, border: `1px solid ${borderColor}`, fontSize: 14, color: '#fffffe' }}
+                                        >
+                                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{opt}</ReactMarkdown>
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                                {prob.type === 'frq' && (
+                                  <div className="mt-4 ml-6">
+                                    {!isAnswered ? (
+                                      <button 
+                                        onClick={() => setQuizState(p => ({ ...p, [i]: { ...p[i], revealed: true } }))}
+                                        className="rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
+                                        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#fffffe' }}
+                                      >
+                                        Show Answer
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                )}
+                                
+                                {isAnswered && (
+                                  <div className="mt-5 p-4 rounded-lg ml-6" style={{ background: 'rgba(255,255,255,0.03)', borderLeft: `3px solid ${SUBJECTS[lesson.subj].accent}` }}>
+                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-white/50">Explanation</div>
+                                    <div className="prose-ap" style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+                                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{prob.explanation}</ReactMarkdown>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })
+                        })()}
                       </div>
                     </div>
                   ) : null}
