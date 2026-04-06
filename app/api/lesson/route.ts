@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PLAYLIST, SUBJECTS } from '@/lib/playlist'
 
-// Free models on OpenRouter — tried in order until one succeeds
-const FREE_MODELS = [
-  'meta-llama/llama-3.1-8b-instruct:free',
-  'google/gemma-2-9b-it:free',
-  'mistralai/mistral-7b-instruct:free',
-]
+// openrouter/free = OpenRouter's official free-model auto-router
+// It picks whichever free model is currently available so we never get 404s
+const FREE_MODELS = ['openrouter/free']
 
 export async function POST(req: NextRequest) {
   const { lessonId, question } = await req.json()
