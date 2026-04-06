@@ -47,7 +47,7 @@ export default function StudyApp() {
   const [syncing, setSyncing] = useState(false)
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [loginInput, setLoginInput] = useState('')
-  const [quizState, setQuizState] = useState<Record<number, { selected?: number, revealed?: boolean }>>({})
+  const [quizState, setQuizState] = useState<Record<number, { selected?: number, draftSelected?: number, frqText?: string, revealed?: boolean }>>({})
   const contentRef = useRef<HTMLDivElement>(null)
 
   // Init user + load progress
@@ -462,7 +462,7 @@ export default function StudyApp() {
 
                           return problems.map((prob, i) => {
                             const qState = quizState[i] || {}
-                            const isAnswered = qState.revealed || qState.selected !== undefined
+                            const isAnswered = !!qState.revealed
 
                             return (
                               <div key={i} className="rounded-xl p-5 border" style={{ borderColor: 'rgba(255,255,255,0.1)', background: '#1a1927' }}>
@@ -475,6 +475,7 @@ export default function StudyApp() {
                                 {prob.type === 'mcq' && prob.options && (
                                   <div className="flex flex-col gap-2 mt-4 ml-6">
                                     {prob.options.map((opt: string, optIdx: number) => {
+                                      const isDraft = !isAnswered && qState.draftSelected === optIdx
                                       const isSelected = qState.selected === optIdx
                                       const isCorrect = isAnswered && optIdx === prob.correctIndex
                                       const isWrong = isAnswered && isSelected && optIdx !== prob.correctIndex
@@ -487,6 +488,9 @@ export default function StudyApp() {
                                       } else if (isWrong) {
                                         bg = 'rgba(248, 113, 113, 0.15)'
                                         borderColor = '#f87171'
+                                      } else if (isDraft) {
+                                        bg = 'rgba(255,255,255,0.15)'
+                                        borderColor = SUBJECTS[lesson.subj].accent
                                       } else if (isSelected) {
                                         bg = 'rgba(255,255,255,0.15)'
                                         borderColor = 'rgba(255,255,255,0.3)'
@@ -496,7 +500,7 @@ export default function StudyApp() {
                                         <button
                                           key={optIdx}
                                           disabled={isAnswered}
-                                          onClick={() => setQuizState(p => ({ ...p, [i]: { ...p[i], selected: optIdx, revealed: true } }))}
+                                          onClick={() => setQuizState(p => ({ ...p, [i]: { ...p[i], draftSelected: optIdx } }))}
                                           className="text-left rounded-lg p-3 transition-colors disabled:cursor-default"
                                           style={{ background: bg, border: `1px solid ${borderColor}`, fontSize: 14, color: '#fffffe' }}
                                         >
@@ -504,19 +508,39 @@ export default function StudyApp() {
                                         </button>
                                       )
                                     })}
+                                    
+                                    {!isAnswered && (
+                                      <button 
+                                        disabled={qState.draftSelected === undefined}
+                                        onClick={() => setQuizState(p => ({ ...p, [i]: { ...p[i], selected: p[i]?.draftSelected, revealed: true } }))}
+                                        className="rounded-lg px-4 py-2 text-sm font-semibold transition-all mt-2 disabled:opacity-40 self-start"
+                                        style={{ background: SUBJECTS[lesson.subj].accent, color: '#0f0e17' }}
+                                      >
+                                        Submit Answer
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                                 {prob.type === 'frq' && (
-                                  <div className="mt-4 ml-6">
-                                    {!isAnswered ? (
+                                  <div className="mt-4 ml-6 flex flex-col gap-3">
+                                    <textarea
+                                      disabled={isAnswered}
+                                      value={qState.frqText || ''}
+                                      onChange={e => setQuizState(p => ({ ...p, [i]: { ...p[i], frqText: e.target.value } }))}
+                                      placeholder="Type your response here..."
+                                      className="rounded-lg p-3 w-full outline-none transition-all disabled:opacity-60"
+                                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#fffffe', fontSize: 14, minHeight: 100, resize: 'vertical' }}
+                                    />
+                                    {!isAnswered && (
                                       <button 
+                                        disabled={!qState.frqText?.trim()}
                                         onClick={() => setQuizState(p => ({ ...p, [i]: { ...p[i], revealed: true } }))}
-                                        className="rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
-                                        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#fffffe' }}
+                                        className="rounded-lg px-4 py-2 text-sm font-semibold transition-all disabled:opacity-40 self-start"
+                                        style={{ background: SUBJECTS[lesson.subj].accent, color: '#0f0e17' }}
                                       >
-                                        Show Answer
+                                        Submit Response
                                       </button>
-                                    ) : null}
+                                    )}
                                   </div>
                                 )}
                                 
