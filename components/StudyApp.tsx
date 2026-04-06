@@ -29,6 +29,15 @@ type Tab = 'lesson' | 'practice'
 
 const SUBJECT_KEYS = Object.keys(SUBJECTS) as Subject[]
 
+const processMath = (str: string) => {
+  if (!str) return ''
+  return str
+    .replace(/\\\(/g, () => '$')
+    .replace(/\\\)/g, () => '$')
+    .replace(/\\\[/g, () => '$$')
+    .replace(/\\\]/g, () => '$$')
+}
+
 export default function StudyApp() {
   const [currentIdx, setCurrentIdx] = useState<number | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
@@ -381,7 +390,7 @@ export default function StudyApp() {
                     </div>
                   ) : (
                     <div className="fade-in prose-ap">
-                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{lessonText}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{processMath(lessonText)}</ReactMarkdown>
                     </div>
                   )}
 
@@ -393,7 +402,7 @@ export default function StudyApp() {
                           <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: SUBJECTS[lesson.subj].accent, marginBottom: 6 }}>Your question: {fup.q}</div>
                           {fup.a ? (
                             <div className="prose-ap" style={{ fontSize: 14 }}>
-                              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{fup.a}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{processMath(fup.a)}</ReactMarkdown>
                             </div>
                           ) : (
                             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Thinking…</div>
@@ -469,7 +478,7 @@ export default function StudyApp() {
                                 <div className="font-semibold mb-3 flex gap-2">
                                   <span style={{ color: SUBJECTS[lesson.subj].accent }}>Q{i + 1}.</span>
                                   <div className="prose-ap" style={{ display: 'inline-block' }}>
-                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{prob.question}</ReactMarkdown>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{processMath(prob.question)}</ReactMarkdown>
                                   </div>
                                 </div>
                                 {prob.type === 'mcq' && prob.options && (
@@ -504,7 +513,7 @@ export default function StudyApp() {
                                           className="text-left rounded-lg p-3 transition-colors disabled:cursor-default"
                                           style={{ background: bg, border: `1px solid ${borderColor}`, fontSize: 14, color: '#fffffe' }}
                                         >
-                                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{opt}</ReactMarkdown>
+                                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{processMath(opt)}</ReactMarkdown>
                                         </button>
                                       )
                                     })}
@@ -548,7 +557,7 @@ export default function StudyApp() {
                                   <div className="mt-5 p-4 rounded-lg ml-6" style={{ background: 'rgba(255,255,255,0.03)', borderLeft: `3px solid ${SUBJECTS[lesson.subj].accent}` }}>
                                     <div className="text-xs font-bold uppercase tracking-wider mb-2 text-white/50">Explanation</div>
                                     <div className="prose-ap" style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
-                                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{prob.explanation}</ReactMarkdown>
+                                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>{processMath(prob.explanation)}</ReactMarkdown>
                                     </div>
                                   </div>
                                 )}
