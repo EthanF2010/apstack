@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const sql = getDb()
     const rows = await sql`
       SELECT lesson_id, completed FROM progress WHERE user_id = ${userId}
-    `
+    ` as { lesson_id: string; completed: boolean }[]
     const completed: Record<string, boolean> = {}
     for (const row of rows) completed[row.lesson_id] = row.completed
     return NextResponse.json({ completed })
